@@ -1,0 +1,44 @@
+from docplex.mp.model import Model
+class PMSMA_CPLEX():
+    def calc_opt_sol(pj, n_machines, n_jobs, t, T):
+        #init model
+        model = Model('PMSMA')
+
+        #Parameter
+        n_jobs = n_jobs
+        n_blocks = n_jobs
+        pj = pj
+        n_machines = n_machines
+        t = t
+        T = T
+
+        #creating decision variables
+        x = model.binary_var_cube(n_jobs, n_blocks, n_machines, name="x")
+        y = model.binary_var_matrix(n_blocks, n_machines, name="y")
+        cmax = model.continuous_var(name="C_max")
+
+        #create objective
+        model.set_objective('min', cmax)
+
+        #adding constraints
+        model.add_constraints(
+            (sum(x[j,k,i] for k in range(n_blocks) for i in range(n_machines)) == 1 for j in range(n_jobs)),names="2"
+        )
+        model.add_constraints(
+            (x[j,k,i] <= y[k, i]
+            for j in range(n_jobs) for k in range(n_blocks) for i in range(n_machines)),
+            names="3"
+        )
+        model.add_constraints(
+            (sum(pj[j] * x[j,k,i] for j in range(n_jobs)) <= T for k in range(n_blocks) for i in range(n_machines)), names="4"
+        )
+        model.add_constraints(
+            (sum(pj[j] * x[j,k,i] for j in range(n_jobs) for k in range(n_blocks)) + t * sum(y[k,i] for k in range(1, n_blocks)) <= cmax for i in range(n_machines)),names="5"
+        )
+        # Solve model
+        model.solve()
+        sol = model.objective_value
+        return sol
+
+
+
